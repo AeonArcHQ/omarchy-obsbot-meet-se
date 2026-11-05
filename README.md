@@ -21,6 +21,24 @@ Meet SE webcam, without OBSBOT Center.
 The user must be able to open `/dev/video*` (the `video` group or the logind
 ACL, the default in a local session).
 
+## Installation
+
+```sh
+omarchy plugin add https://github.com/AeonArcHQ/omarchy-obsbot-meet-se --enable
+```
+
+No udev rule is needed.
+
+## Removing
+
+```sh
+omarchy plugin remove com.aeonarc.obsbot-meet-se
+```
+
+The plugin leaves nothing else behind. Settings changed from the panel
+stay in the camera; "Restore factory defaults" brings them back before
+removing, if you want.
+
 ## How it works
 
 - `obsbot-xu`: a Python helper that finds the camera through sysfs and runs
