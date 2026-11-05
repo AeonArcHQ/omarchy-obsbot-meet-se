@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "com.aeonarc.obsbot-meet-se",
+  "name": "OBSBOT Meet SE",
+  "version": "1.0.0",
+  "author": "Aeon Arc",
+  "license": "MIT",
+  "description": "Live preview and OBSBOT Meet SE controls in the Omarchy bar: AI framing, field of view, zoom, direction, mirror, gestures, image settings, focus and microphone.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "OBSBOT Meet SE",
+    "description": "Preview and control the OBSBOT Meet SE webcam. Left click for the panel, right click to mute the microphone.",
+    "category": "Devices",
+    "aliases": ["obsbot", "webcam", "camera", "meet se"],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {},
+    "schema": []
+  }
+}

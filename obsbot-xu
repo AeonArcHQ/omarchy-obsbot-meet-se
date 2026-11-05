@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+"""Raw transport to the OBSBOT Meet SE vendor extension unit.
+
+Moves 60-byte packets to and from selector 6 of UVC unit 2 through the
+uvcvideo UVCIOC_CTRL_QUERY ioctl. It knows nothing about the protocol:
+Model.js builds every packet and decodes every status block.
+
+  obsbot-xu find          {"ok": true, "device": "/dev/video2"}
+  obsbot-xu get           {"ok": true, "device": ..., "status": "<120 hex>"}
+  obsbot-xu set <hex>     {"ok": true, "device": ..., "status": "<120 hex>"}
+
+Failures print {"ok": false, "error": <code>} with code one of: missing,
+access-denied, disconnected, invalid-packet, io.
+"""
+
+from __future__ import annotations
+
+import ctypes
+import errno
+import fcntl
+import json
+import os
+import re
+import sys
+from pathlib import Path
+from typing import Optional
+
+USB_VENDOR_ID = "3564"
+USB_PRODUCT_ID = "fefe"
+XU_UNIT = 2
+XU_SELECTOR = 6
+PACKET_SIZE = 60
+
+UVC_SET_CUR = 0x01
+UVC_GET_CUR = 0x81
+# _IOWR('u', 0x21, struct uvc_xu_control_query)
+UVCIOC_CTRL_QUERY = 0xC0107521
+
+VIDEO_NODE = re.compile(r"^video(\d+)$")
+
+
+class XuQuery(ctypes.Structure):
+    _fields_ = [
+        ("unit", ctypes.c_uint8),
+        ("selector", ctypes.c_uint8),
+        ("query", ctypes.c_uint8),
+        ("size", ctypes.c_uint16),
+        ("data", ctypes.c_void_p),
+    ]
+
+
+class TransportError(Exception):
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.code = code
+
+
+def read_attr(path: Path) -> str:
+    try:
+        return path.read_text().strip()
+    except OSError:
+        return ""
+
+
+def find_device(sysfs: Path = Path("/sys")) -> Optional[str]:
+    """Return the camera's capture node; index 1 is its metadata node."""
+    nodes = []
+    for node in (sysfs / "class" / "video4linux").glob("video*"):
+        match = VIDEO_NODE.match(node.name)
+        if not match or read_attr(node / "index") != "0":
+            continue
+        usb_device = (node / "device").resolve().parent
+        if (read_attr(usb_device / "idVendor") == USB_VENDOR_ID
+                and read_attr(usb_device / "idProduct") == USB_PRODUCT_ID):
+            nodes.append((int(match.group(1)), node.name))
+    return "/dev/" + min(nodes)[1] if nodes else None
+
+
+def error_code(error: OSError) -> str:
+    if error.errno in (errno.EACCES, errno.EPERM):
+        return "access-denied"
+    if error.errno in (errno.ENODEV, errno.ENOENT, errno.ENXIO):
+        return "disconnected"
+    return "io"
+
+
+def query(device: str, request: int, payload: bytes = b"") -> bytes:
+    buffer = (ctypes.c_uint8 * PACKET_SIZE)(*payload)
+    message = XuQuery(XU_UNIT, XU_SELECTOR, request, PACKET_SIZE,
+                      ctypes.cast(buffer, ctypes.c_void_p))
+    try:
+        fd = os.open(device, os.O_RDWR)
+    except OSError as error:
+        raise TransportError(error_code(error)) from error
+    try:
+        fcntl.ioctl(fd, UVCIOC_CTRL_QUERY, message)
+    except OSError as error:
+        raise TransportError(error_code(error)) from error
+    finally:
+        os.close(fd)
+    return bytes(buffer)
+
+
+def parse_packet(text: str) -> bytes:
+    if not re.fullmatch(r"[0-9a-fA-F]{%d}" % (PACKET_SIZE * 2), text):
+        raise TransportError("invalid-packet")
+    return bytes.fromhex(text)
+
+
+def run(argv: list[str], sysfs: Path = Path("/sys")) -> dict:
+    command = argv[0] if argv else ""
+    if command not in ("find", "get", "set") or (command == "set") != (len(argv) == 2):
+        raise TransportError("usage")
+    packet = parse_packet(argv[1]) if command == "set" else b""
+    device = find_device(sysfs)
+    if device is None:
+        raise TransportError("missing")
+    if command == "find":
+        return {"ok": True, "device": device}
+    if command == "set":
+        query(device, UVC_SET_CUR, packet)
+    return {"ok": True, "device": device, "status": query(device, UVC_GET_CUR).hex()}
+
+
+def main() -> int:
+    try:
+        result = run(sys.argv[1:])
+    except TransportError as error:
+        print(json.dumps({"ok": False, "error": error.code}))
+        return 2 if error.code == "usage" else 1
+    print(json.dumps(result))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
