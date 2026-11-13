@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "com.aeonarc.obsbot-meet-se",
   "name": "OBSBOT Meet SE",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Aeon Arc",
   "license": "MIT",
   "description": "Live preview and OBSBOT Meet SE controls in the Omarchy bar: AI framing, field of view, zoom, direction, mirror, gestures, image settings, focus and microphone.",
