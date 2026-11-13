@@ -118,6 +118,15 @@ function availability(connection, status) {
   }
 }
 
+// Whether a poll should read the image controls. The first closed-panel polls
+// read too, so the panel opens with the controls already there; once a
+// --list-ctrls run has succeeded (even if the camera reports none), a closed
+// panel can skip the ioctl. A write owns the controls until it finishes,
+// because the read-back would undo the value the panel already shows.
+function readsControls(active, controlsKnown, writing) {
+  return !writing && (active || !controlsKnown)
+}
+
 // Parse `v4l2-ctl --list-ctrls` into { name: { type, min, max, step,
 // default, value, inactive } }. Menu labels after the value are ignored.
 function parseControls(text) {

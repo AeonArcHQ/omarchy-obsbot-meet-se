@@ -148,6 +148,34 @@ TestCase {
     compare(Model.withZoom(null, 1), null)
   }
 
+  // A write shows its value at once; reading it back before the camera applies
+  // it would replace that value with the stale one, so the read waits.
+  function test_reading_controls_waits_for_writes() {
+    compare(Model.readsControls(true, true, true), false)
+    compare(Model.readsControls(true, false, true), false)
+    compare(Model.readsControls(false, false, true), false)
+    compare(Model.readsControls(false, true, true), false)
+  }
+
+  // While the panel is open a poll reads every time, so controls changed
+  // outside the panel show without reopening it.
+  function test_open_panel_reads_controls() {
+    compare(Model.readsControls(true, true, false), true)
+    compare(Model.readsControls(true, false, false), true)
+  }
+
+  // The first panel open used to show empty IMAGE/zoom sections until a read
+  // landed; a closed poll must fetch the controls once the device is known.
+  function test_closed_panel_reads_controls_until_one_read_succeeds() {
+    compare(Model.readsControls(false, false, false), true)
+  }
+
+  // After a successful `--list-ctrls`, closed-panel polls skip the ioctl, as
+  // before; an empty successful read still counts as known.
+  function test_closed_panel_skips_controls_after_a_read() {
+    compare(Model.readsControls(false, true, false), false)
+  }
+
   // Excerpt of `v4l2-ctl -d /dev/video2 --list-ctrls` on 22/10.
   readonly property string controlsOutput: [
     "",

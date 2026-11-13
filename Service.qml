@@ -44,6 +44,15 @@ Item {
   // Set once the camera has dropped off the bus during a reconnect; only an
   // answer after that means it came back.
   property bool _sawDisconnect: false
+  // A --list-ctrls run succeeded. `controls` can stay empty when the camera
+  // reports none, so it cannot stand in for this flag.
+  property bool _controlsKnown: false
+
+  // A write is queued or running; reading now would replace the optimistic
+  // value the panel already shows with the stale one from the camera.
+  function _writing() {
+    return root._pendingControl !== null || setControlProcess.running || resetControlsProcess.running
+  }
 
   function refresh() {
     if (!statusProcess.running) {
@@ -51,10 +60,9 @@ Item {
       statusProcess.running = true
       pollWatchdog.restart()
     }
-    // Skip while a write is queued or running, or the read-back would undo the
-    // optimistic value.
-    var writing = root._pendingControl !== null || setControlProcess.running || resetControlsProcess.running
-    if (root.active && !writing) root.readControls()
+    // The rule reads once before the panel opens so the first open has the
+    // controls, and skips while a write would be undone by the read-back.
+    if (Model.readsControls(root.active, root._controlsKnown, root._writing())) root.readControls()
   }
 
   function readControls() {
@@ -150,6 +158,11 @@ Item {
     }
     if (reconnecting && !root._sawDisconnect) return
     root.device = String(result.device || "")
+    // This answer is the first place the device is known, so read the controls
+    // here instead of waiting up to 6 s for the next closed-panel refresh.
+    // Passing `false` for active keeps it to that first read: with the panel
+    // open, refresh() already reads on every tick.
+    if (Model.readsControls(false, root._controlsKnown, root._writing())) root.readControls()
     if (result.status !== undefined) {
       var decoded = Model.decodeStatus(result.status)
       if (decoded === null) {
@@ -250,7 +263,10 @@ Item {
     command: []
     stdout: StdioCollector { id: controlsStdout; waitForEnd: true }
     onExited: function(exitCode) {
-      if (exitCode === 0) root.controls = Model.parseControls(controlsStdout.text)
+      if (exitCode === 0) {
+        root.controls = Model.parseControls(controlsStdout.text)
+        root._controlsKnown = true
+      }
       if (root._resetPending) {
         root._resetPending = false
         if (exitCode === 0) root.resetDefaults()
