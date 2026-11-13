@@ -11,3 +11,7 @@ The default label vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `
 ### Domain docs
 
 Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Bar entry
+
+Before changing the bar entry, read `/usr/share/omarchy/shell/plugins/bar/README.md` ("Icon geometry") and match the shell's own widget for the same job (clicks, label, settings): for a battery, `/usr/share/omarchy/shell/plugins/panels/power/Panel.qml`.

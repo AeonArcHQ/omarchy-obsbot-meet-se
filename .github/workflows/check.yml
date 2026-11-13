@@ -1,0 +1,13 @@
+name: check
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - run: pacman -Syu --noconfirm --needed git python qt6-declarative
+      - uses: actions/checkout@v4
+      - run: tests/check.sh
