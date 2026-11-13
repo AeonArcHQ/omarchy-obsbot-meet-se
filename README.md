@@ -82,6 +82,14 @@ Checklist with the camera connected:
     and the V4L2 controls to the `default` reported by
     `v4l2-ctl --list-ctrls`.
 
+## Releasing
+
+1. Bump `"version"` in `manifest.json` and commit it as `Release <version>`.
+2. Tag that commit with an annotated tag: `git tag -a v<version> -m v<version>`.
+3. Push the commit and the tag, then wait for the `check` workflow to pass.
+4. Publish a GitHub release for the tag with English notes, one line per
+   change a user can see, linking the issue it closes (`(#1)`).
+
 ## Credits
 
 The preview follows the pattern of the
